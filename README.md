@@ -8,7 +8,10 @@ Just copy `core.xxx` file and require it in your project (see `examples.xxx`, `t
 
 ## Usage
 
-# Clojure
+* [Clojure](#сlojure)
+* [Python](#зython)
+
+## Clojure
 
 tail recursion
 ```
@@ -175,11 +178,7 @@ test=> (eval-cs ack 3 14)
 ```
 not bad again, I think! :)
 
-
-
-
-
-# Python
+## Python
 
 tail recursion
 ```
