@@ -4,9 +4,11 @@ Any function custom stack evaluator with optional memoization.
 
 ## Setup
 
-Just copy core.clj file and require it in your project :).
+Just copy `core.xxx` file and require it in your project (see `examples.xxx`, `test.xxx`).
 
 ## Usage
+
+# Clojure
 
 tail recursion
 ```
@@ -143,7 +145,7 @@ test=> (eval-cs height 5 3000)
 2021630625377350
 ```
 we avoid as SO as endless time evaluation! not bad, I think.
-but how abou non-primitive recursions? Ackermann is on the stage!
+but how about non-primitive recursions? Ackermann is on the stage!
 ```
 test=> (defn ack [m n]
   #_=>       (cond
@@ -173,7 +175,198 @@ test=> (eval-cs ack 3 14)
 ```
 not bad again, I think! :)
 
-See `test.clj`
+
+
+
+
+# Python
+
+tail recursion
+```
+>>> def foo(n, a): return a if (0 == n) else foo(n-1, n+a)
+...
+>>> foo(10000, 0)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+.........
+RecursionError: maximum recursion depth exceeded in comparison
+```
+oh, but we have while!
+```
+>>> def foo(n):
+...   r = 0
+...   while (n>0):
+...     r += n
+...     n -= 1
+...   return r
+...
+>>> foo(10000)
+50005000
+```
+and we also have trampoline!
+```
+>>> def foo(n, a): return a if (0 == n) else TR(lambda: foo(n-1, n+a))
+...
+>>> evalTR(foo(10000, 0))
+50005000
+```
+
+mutual tail call (non-tail recurtion)
+```
+>>> def isEven(n): return True if (n == 0) else isOdd(n-1)
+...
+>>> def isOdd(n): return False if (n == 0) else isEven(n-1)
+...
+>>> isEven(10000)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+.........
+RecursionError: maximum recursion depth exceeded in comparison
+```
+oh, but we sill have trampoline!
+```
+>>> def isEven(n): return True if (n == 0) else TR(lambda: isOdd(n-1))
+...
+>>> def isOdd(n): return False if (n == 0) else TR(lambda: isEven(n-1))
+...
+>>> evalTR(isEven(10000))
+True
+```
+
+non-tail recursion
+```
+>>> def bar(n): return 0 if (0 == n) else n + bar(n-1)
+...
+>>> bar(10000)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+.........
+RecursionError: maximum recursion depth exceeded in comparison
+```
+but we have custom-stack evaluator!
+```
+>>> def bar(n): return 0 if (0 == n) else CS(fold = lambda v: n+v, args = lambda: bar(n-1))
+...
+>>> evalCS(bar(10000))
+50005000
+```
+and we can use it for all previous cases (but can also use recur/trampoline of course, and it will be faster)
+```
+>>> def foo(n, a): return a if (0 == n) else CS(args = lambda: foo(n-1, n+a))
+...
+>>> evalCS(foo(10000, 0))
+50005000
+>>> def isEven(n): return True if (n == 0) else CS(args = lambda: isOdd(n-1))
+...
+>>> def isOdd(n): return False if (n == 0) else CS(args = lambda: isEven(n-1))
+...
+>>> evalCS(isEven(10000))
+True
+```
+
+it has an optional built-in memoization!
+```
+>>> def fib(n): return n if (n < 2) else CS(fold = lambda x, y: x+y,
+...                                         args = [lambda: fib(n-1), lambda: fib(n-2)],
+...                                         memo = n)
+...
+>>> evalCS(fib(50))
+12586269025
+```
+of course, that was not a StackOverflow case, but what about this?
+```
+>>> def cc(s, coins):
+...   def go(s, i):
+...     if (s == 0): return 1
+...     elif (s < 0 or i >= len(coins)): return 0
+...     else: return go(s, i+1) + go(s-coins[i], i)
+...   return go(s, 0)
+...
+>>> cc(10000, [1, 333])
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+.........
+RecursionError: maximum recursion depth exceeded in comparison
+>>>
+```
+oh, lets add a cs!
+```
+>>> def cc(s, coins):
+...   def go(s, i):
+...     if (s == 0): return 1
+...     elif (s < 0 or i >= len(coins)): return 0
+...     else:
+...       return CS(fold = lambda x, y: x+y,
+...                 args = [lambda: go(s, i+1), lambda: go(s-coins[i], i)])
+...   return go(s, 0)
+...
+>>> evalCS(cc(10000, [1, 333]))
+31
+```
+goood, but
+```
+evalCS(cc(10000, [1, 5, 10, 25, 50]))
+```
+never ends!
+lets add a memo
+```
+>>> def cc(s, coins):
+...   def go(s, i):
+...     if (s == 0): return 1
+...     elif (s < 0 or i >= len(coins)): return 0
+...     else:
+...       return CS(fold = lambda x, y: x+y,
+...                 args = [lambda: go(s, i+1), lambda: go(s-coins[i], i)],
+...                 memo = (s, i))
+...   return go(s, 0)
+...
+>>> evalCS(cc(10000, [1, 5, 10, 25, 50]))
+6794128501
+```
+cool! lets play a little
+```
+>>> def height(n, m):
+...   return 0 if (m <= 0 or n <= 0) else CS(fold = lambda x, y: x+y+1,
+...                                          args = [lambda: height(n, m-1), lambda: height(n-1, m-1)],
+...                                          memo = (n, m))
+...
+>>> evalCS(height(5, 3000))
+2021630625377350
+```
+we avoid as SO as endless time evaluation! not bad, I think.
+but how about non-primitive recursions? Ackermann is on the stage!
+```
+>>> def ack(m, n):
+...   if   (0 == m): return n + 1
+...   elif (0 == n): return ack(m-1, 1)
+...   else:          return ack(m-1, ack(m, n-1))
+...
+>>> ack(4, 1)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+.........
+RecursionError: maximum recursion depth exceeded in comparison
+```
+let wrap it in cs-memo (in a smart way)
+```
+>>> def ackCS(m, n):
+...   if   (0 == m): return n + 1
+...   elif (0 == n): return CS(args = lambda: ackCS(m-1, 1), memo = (m, n))
+...   else:          return CS(fold = lambda a, b: CS(args = lambda: ackCS(a, b), memo = (a, b)),
+...                            args = [m-1, lambda: ackCS(m, n-1)],
+...                            memo = (m, n))
+...
+>>> evalCS(ackCS(4, 1))
+65533
+>>> evalCS(ackCS(3, 14))
+131069
+```
+not bad again, I think! :)
+
+
+
+
+
 
 ## Warnings
 

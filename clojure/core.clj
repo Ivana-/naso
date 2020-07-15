@@ -25,6 +25,15 @@
                    :args (mapv #(list 'fn '[] %) args)
                    :args-memo args-memo})
 
+(defn trace [{:keys [eval-args not-eval-args args-memo]} d]
+  (let [spaces (apply str (replicate d " "))
+        msg (cond
+              (seq eval-args) eval-args
+              args-memo args-memo
+              :else (let [x (first not-eval-args)]
+                      (if (map? x) "???" x)))]
+    (println (str spaces msg))))
+
 (defn eval-cs [f & args]
   (let [r (apply f args)]
     (if-not (:custom-stack? (meta r))
@@ -34,6 +43,8 @@
                                     :not-eval-args (map (fn [f] (f)) (:args x))}))
             m (atom {})]
         (loop [[h & t] (list (make-si r))]
+          ;; (trace h (count t))
+
           (let [hne (-> h :not-eval-args first)]
             (cond
 
