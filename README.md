@@ -8,7 +8,7 @@ Just copy `core.xxx` file and require it in your project (see `examples.xxx`, `t
 
 ## Usage
 
-* [Clojure](#сlojure)
+* [Clojure](#clojure)
 * [Python](#python)
 
 ## Clojure
